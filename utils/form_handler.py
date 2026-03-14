@@ -77,7 +77,6 @@ def build_payload(
         if not entry_id:
             continue
 
-        # Resolve the actual value based on mode
         if mode == MODE_CSV:
             cell_val = get_cell_value(_dict_to_series(row), column=value, fallback="")
             resolved = cell_val
@@ -88,15 +87,12 @@ def build_payload(
         else:
             resolved = str(value)
 
-        # Ensure entry_id has the "entry." prefix
         key = _normalise_entry_id(entry_id)
         payload[key] = resolved
 
-        # Optionally add sentinel field (used by matrix/Likert questions)
         if include_sentinels and add_sentinel:
             payload[f"{key}_sentinel"] = ""
 
-    # Always add Google Form metadata fields
     payload["fvv"] = fvv
     payload["pageHistory"] = page_history
 
@@ -148,8 +144,6 @@ def send_form(
             allow_redirects=True,
         )
 
-        # Google Forms returns 200 for successful submissions; it may also
-        # redirect to a thank-you page (still 200 after redirect).
         if response.status_code == 200:
             return {
                 "success": True,

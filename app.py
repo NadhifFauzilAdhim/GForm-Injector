@@ -43,20 +43,11 @@ from utils.generators import (
     get_generator_sample,
 )
 
-# ============================================================
-# Page config
-# ============================================================
-
 st.set_page_config(
     page_title="Google Form Injector",
-    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-# ============================================================
-# Custom CSS
-# ============================================================
 
 st.markdown(
     """
@@ -117,24 +108,18 @@ st.markdown(
 def _init_state() -> None:
     """Initialise all required session-state keys exactly once."""
     defaults: dict = {
-        # Dataset
         "df": None,
         "csv_columns": [],
-        # Mappings
         "mappings": [],
         "next_mapping_id": 0,
-        # Injection control
         "is_running": False,
         "stop_flag": [False],
-        # Results
         "results": [],
         "log_lines": [],
-        # UI flags
         "show_payload_preview": False,
-        # Sidebar metadata (can be overridden by decode feature)
+        "agreed": False,
         "fvv_val": "1",
         "ph_val": "0",
-        # Decode feature state
         "decoded_result": None,
         "raw_payload_text": "",
     }
@@ -145,11 +130,42 @@ def _init_state() -> None:
 
 _init_state()
 
+if not st.session_state.agreed:
+    
+    def _agreed_callback():
+        st.session_state.agreed = True
+        st.rerun()
+
+    if hasattr(st, "dialog"):
+        @st.dialog("⚠️ Terms of Use Agreement")
+        def show_agreement():
+            st.warning("This application is specifically made for **testing and educational purposes**.")
+            st.markdown(
+                "By using this application, you agree that:\n"
+                "- You have permission to submit data to the target form.\n"
+                "- The developer is not responsible for any misuse of this tool.\n"
+                "- You will not use it to intentionally cause harm (e.g., spamming)."
+            )
+            if st.button("I Agree", type="primary", use_container_width=True):
+                _agreed_callback()
+        show_agreement()
+    else:
+        st.markdown("## ⚠️ Terms of Use Agreement")
+        st.warning("This application is specifically made for **testing and educational purposes**.")
+        st.markdown(
+            "By using this application, you agree that:\n"
+            "- You have permission to submit data to the target form.\n"
+            "- The developer is not responsible for any misuse of this tool.\n"
+            "- You will not use it to intentionally cause harm (e.g., spamming)."
+        )
+        if st.button("I Agree", type="primary"):
+            _agreed_callback()
+    
+    st.stop()
 
 # ============================================================
 # Helpers
 # ============================================================
-
 
 def _new_mapping(
     entry_id: str = "",
@@ -172,19 +188,19 @@ def _new_mapping(
 def _colourise_log(line: str) -> str:
     """Wrap a log line in a colour-coded HTML <span>."""
     if "✅" in line:
-        colour = "#a6e3a1"  # green
+        colour = "#a6e3a1"  
     elif "❌" in line:
-        colour = "#f38ba8"  # red
+        colour = "#f38ba8"  
     elif "⏹" in line:
-        colour = "#fab387"  # orange
+        colour = "#fab387"  
     elif "🧪" in line or "DRY" in line:
-        colour = "#89dceb"  # cyan
+        colour = "#89dceb"  
     elif "⚠" in line:
-        colour = "#f9e2af"  # yellow
+        colour = "#f9e2af" 
     elif "🚀" in line or "Start" in line:
-        colour = "#b4befe"  # lavender
+        colour = "#b4befe" 
     else:
-        colour = "#cdd6f4"  # default light
+        colour = "#cdd6f4" 
 
     safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return f"<span style='color:{colour}'>{safe}</span>"
@@ -210,18 +226,19 @@ def _sh(text: str) -> None:
 with st.sidebar:
     try:
         st.image(
-            "https://ssl.gstatic.com/docs/doclist/images/mediatype/icon_1_form_x64.png",
-            width=48,
+            "./img/logo.png",
+            width=200,
         )
     except Exception:
         st.markdown("🚀")
 
     st.title("GForm Injector")
     st.caption("Automatically submit CSV data to Google Forms")
-    st.divider()
 
-    # ── Form URL ─────────────────────────────────────────────
-    st.markdown("### 🔗 Form URL")
+    st.warning("**Warning:** Developer is not responsible for any misuse of this tool.")
+
+    st.divider()
+    st.markdown("### Form URL")
     raw_url: str = st.text_input(
         "Response URL",
         placeholder="https://docs.google.com/forms/d/e/.../formResponse",
@@ -238,16 +255,16 @@ with st.sidebar:
         form_url = normalise_form_url(raw_url)
         url_valid = is_valid_form_url(form_url)
         if url_valid:
-            st.success("✅ URL is valid")
+            st.success("URL is valid")
         else:
-            st.error("❌ Invalid URL — must be `docs.google.com/forms/...`")
+            st.error("Invalid URL — must be `docs.google.com/forms/...`")
         with st.expander("Resolved URL", expanded=False):
             st.code(form_url, language=None)
 
     st.divider()
 
     # ── Request Delay ─────────────────────────────────────────
-    st.markdown("### ⏱️ Request Delay")
+    st.markdown("### Request Delay")
     d_col1, d_col2 = st.columns(2)
     with d_col1:
         min_delay: float = st.number_input(
@@ -273,7 +290,7 @@ with st.sidebar:
     st.divider()
 
     # ── Form Metadata ─────────────────────────────────────────
-    st.markdown("### ⚙️ Form Metadata")
+    st.markdown("### Form Metadata")
     fvv: str = st.text_input(
         "fvv",
         value=st.session_state.fvv_val,
@@ -297,7 +314,7 @@ with st.sidebar:
     st.divider()
 
     # ── Generator Reference ───────────────────────────────────
-    with st.expander("📚 Generator Reference", expanded=False):
+    with st.expander("Generator Reference", expanded=False):
         for gen_name in get_generator_names():
             desc = get_generator_description(gen_name)
             sample = get_generator_sample(gen_name)
@@ -318,11 +335,11 @@ with st.sidebar:
 # Page title
 # ============================================================
 
-st.markdown("## 🚀 Google Form Injector")
+st.markdown("## Google Form Injector")
 st.caption("Upload a CSV · Configure field mappings · Bulk-submit to Google Forms")
 
 tab_upload, tab_mapping, tab_inject = st.tabs(
-    ["📂 Upload & Preview", "🗂️ Mapping Builder", "🚀 Injection"]
+    ["Upload & Preview", "Mapping Builder", "Injection"]
 )
 
 # ============================================================
@@ -367,6 +384,15 @@ with tab_upload:
         m3.metric("Missing Values", int(_df.isnull().sum().sum()))
         m4.metric("Duplicate Rows", int(_df.duplicated().sum()))
 
+        st.markdown("<br>", unsafe_allow_html=True)
+        chart_col1, chart_col2 = st.columns(2)
+        with chart_col1:
+            st.caption("Missing Values per Column")
+            st.bar_chart(_df.isnull().sum(), height=250)
+        with chart_col2:
+            st.caption("Unique Values per Column")
+            st.bar_chart(_df.nunique(), height=250)
+
         # ── Column chips ──────────────────────────────────────
         _sh("Column Names")
         col_names = st.session_state.csv_columns
@@ -388,7 +414,7 @@ with tab_upload:
         st.dataframe(get_preview(_df, n_prev), use_container_width=True)
 
         # ── Column statistics ─────────────────────────────────
-        with st.expander("📈 Column Statistics", expanded=False):
+        with st.expander("Column Statistics", expanded=False):
             stats_list = get_column_stats(_df)
             stats_df = pd.DataFrame(stats_list).rename(
                 columns={
@@ -403,7 +429,7 @@ with tab_upload:
 
     else:
         st.info(
-            "⬆️ Upload a CSV file above to get started.\n\n"
+            "Upload a CSV file above to get started.\n\n"
             "The file must be in `.csv` format with a header row on the first line.",
             icon="ℹ️",
         )
@@ -429,8 +455,8 @@ with tab_mapping:
             value=st.session_state.raw_payload_text,
             height=110,
             placeholder=(
-                "entry.37854030=tt&entry.1095224243=12&entry.562465567=dawd"
-                "&entry.1013225845=Minecraft&entry.235502927=Medium"
+                "entry.37854030=tt&entry.1095224243=12&entry.562465567=test"
+                "&entry.1013225845=test&entry.235502927=test"
                 "&fvv=1&pageHistory=0&entry.1013225845_sentinel=&entry.235502927_sentinel="
             ),
             label_visibility="collapsed",
@@ -441,20 +467,20 @@ with tab_mapping:
 
         with dc1:
             decode_btn = st.button(
-                "🔍 Decode",
+                "Decode",
                 use_container_width=True,
                 help="Parse the payload and display the decoded fields",
             )
         with dc2:
             append_btn = st.button(
-                "📥 Append to Mapping",
+                "Append to Mapping",
                 use_container_width=True,
                 disabled=st.session_state.decoded_result is None,
                 help="Add decoded entries to the existing mapping list",
             )
         with dc3:
             replace_btn = st.button(
-                "🔄 Replace All Mappings",
+                "Replace All Mappings",
                 use_container_width=True,
                 disabled=st.session_state.decoded_result is None,
                 help="Clear all current mappings and replace with decoded entries",
@@ -469,19 +495,19 @@ with tab_mapping:
             raw_text = raw_input.strip()
             st.session_state.raw_payload_text = raw_text
             if not raw_text:
-                st.warning("⚠️ Please paste a raw payload first.", icon="⚠️")
+                st.warning("Please paste a raw payload first.", icon="⚠️")
             else:
                 try:
                     result = decode_raw_payload(raw_text)
                     st.session_state.decoded_result = result
                     if result["total_entries"] == 0:
                         st.warning(
-                            "⚠️ No `entry.*` fields found in the payload.",
+                            "No `entry.*` fields found in the payload.",
                             icon="⚠️",
                         )
                     else:
                         st.success(
-                            f"✅ Decoded **{result['total_entries']} entries**, "
+                            f"Decoded **{result['total_entries']} entries**, "
                             f"**{len(result['sentinel_ids'])} sentinels**, "
                             f"fvv=`{result['fvv']}`, "
                             f"pageHistory=`{result['page_history']}`",
@@ -531,7 +557,7 @@ with tab_mapping:
             st.session_state.fvv_val = _res["fvv"]
             st.session_state.ph_val = _res["page_history"]
             st.success(
-                f"✅ Mappings replaced with **{len(_res['entries'])} new entries**. "
+                f"Mappings replaced with **{len(_res['entries'])} new entries**. "
                 f"fvv & pageHistory updated in the Sidebar.",
                 icon="✅",
             )
@@ -542,7 +568,7 @@ with tab_mapping:
             _res = st.session_state.decoded_result
             if _res["total_entries"] > 0:
                 st.divider()
-                _sh("📋 Decode Result")
+                _sh("Decode Result")
 
                 _entry_rows = []
                 for _e in _res["entries"]:
@@ -561,7 +587,7 @@ with tab_mapping:
 
                 _mcol1, _mcol2 = st.columns(2)
                 with _mcol1:
-                    st.markdown("**🔧 Form Metadata**")
+                    st.markdown("**Form Metadata**")
                     st.table(
                         pd.DataFrame(
                             [
@@ -572,7 +598,7 @@ with tab_mapping:
                     )
                 with _mcol2:
                     if _res["google_internal"]:
-                        st.markdown("**🔑 Google Internal Fields**")
+                        st.markdown("**Google Internal Fields**")
                         _gi_rows = [
                             {"Key": k, "Value": str(v)[:60]}
                             for k, v in _res["google_internal"].items()
@@ -591,7 +617,7 @@ with tab_mapping:
 
     if st.session_state.df is None:
         st.info(
-            "ℹ️ Upload a CSV file in the **Upload & Preview** tab to enable "
+            "Upload a CSV file in the **Upload & Preview** tab to enable "
             "**CSV Column** mode in the mapping editor.",
             icon="ℹ️",
         )
@@ -708,7 +734,7 @@ with tab_mapping:
                 )
                 mapping["value"] = new_val
 
-            else:  # MODE_GENERATOR
+            else:  
                 gen_idx = (
                     gen_names.index(mapping["value"])
                     if mapping["value"] in gen_names
@@ -732,21 +758,19 @@ with tab_mapping:
             )
             mapping["sentinel"] = new_sent
 
-            # Live value preview
             if new_mode == MODE_GENERATOR and mapping["value"]:
-                st.caption(f"🎲 `{get_generator_sample(mapping['value'])}`")
+                st.caption(f"`{get_generator_sample(mapping['value'])}`")
             elif new_mode == MODE_STATIC:
-                st.caption(f"📌 `{(mapping['value'] or '')[:22]}`")
+                st.caption(f"`{(mapping['value'] or '')[:22]}`")
             elif new_mode == MODE_CSV and mapping["value"] in csv_columns:
                 try:
                     first_val = str(st.session_state.df.iloc[0][mapping["value"]])
-                    st.caption(f"📄 `{first_val[:22]}`")
+                    st.caption(f"`{first_val[:22]}`")
                 except Exception:
                     pass
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Apply deletions (reverse order preserves indices)
     for idx in sorted(indices_to_delete, reverse=True):
         st.session_state.mappings.pop(idx)
     if indices_to_delete:
@@ -756,17 +780,17 @@ with tab_mapping:
     if st.session_state.mappings:
         issues = validate_mappings(st.session_state.mappings, csv_columns)
         if issues:
-            _sh("⚠️ Mapping Warnings")
+            _sh("Mapping Warnings")
             for iss in issues:
                 st.warning(f"**{iss['entry_id']}** — {iss['issue']}", icon="⚠️")
         else:
             st.success(
-                f"✅ All {len(st.session_state.mappings)} mappings are valid.",
+                f"All {len(st.session_state.mappings)} mappings are valid.",
                 icon="✅",
             )
 
     # ── Save / Load JSON ──────────────────────────────────────
-    with st.expander("💾 Save / Load Mapping Configuration (JSON)", expanded=False):
+    with st.expander("Save / Load Mapping Configuration (JSON)", expanded=False):
         exp_col, imp_col = st.columns(2)
 
         with exp_col:
@@ -781,7 +805,7 @@ with tab_mapping:
                     ensure_ascii=False,
                 )
                 st.download_button(
-                    "⬇️ Download mapping_config.json",
+                    "Download mapping_config.json",
                     data=export_json,
                     file_name="mapping_config.json",
                     mime="application/json",
@@ -811,7 +835,7 @@ with tab_mapping:
                             )
                             for m in imported
                         ]
-                        st.success(f"✅ {len(imported)} mappings loaded.", icon="✅")
+                        st.success(f"{len(imported)} mappings loaded.", icon="✅")
                         st.rerun()
                     else:
                         st.error("Invalid JSON format (must be an array).")
@@ -825,7 +849,7 @@ with tab_mapping:
 
 with tab_inject:
     # ── Pre-flight checklist ──────────────────────────────────
-    _sh("✈️ Pre-flight Checklist")
+    _sh("Pre-flight Checklist")
 
     chk_csv = st.session_state.df is not None
     chk_map = len(st.session_state.mappings) > 0
@@ -834,17 +858,17 @@ with tab_inject:
     cc1, cc2, cc3 = st.columns(3)
     cc1.metric(
         "Dataset",
-        "✅ Ready" if chk_csv else "❌ Not uploaded",
+        "Ready" if chk_csv else "Not uploaded",
         delta=f"{get_row_count(st.session_state.df):,} rows" if chk_csv else None,
     )
     cc2.metric(
         "Mapping",
-        "✅ Ready" if chk_map else "❌ Not configured",
+        "Ready" if chk_map else "Not configured",
         delta=f"{len(st.session_state.mappings)} entries" if chk_map else None,
     )
     cc3.metric(
         "Form URL",
-        "✅ Valid" if chk_url else "❌ Invalid",
+        "Valid" if chk_url else "Invalid",
         delta="/formResponse" if chk_url else None,
     )
 
@@ -866,10 +890,8 @@ with tab_inject:
             icon="ℹ️",
         )
 
-    # ── Controls (only shown when ready) ─────────────────────
     if ready:
-        # ── Row range ─────────────────────────────────────────
-        _sh("📋 Row Range")
+        _sh("Row Range")
         total_rows = get_row_count(st.session_state.df)
         rng1, rng2, rng3 = st.columns([2, 2, 3])
         with rng1:
@@ -892,11 +914,10 @@ with tab_inject:
             selected_count = max(0, int(end_row) - int(start_row))
             st.metric("Rows to submit", f"{selected_count:,}")
 
-        # ── Payload preview ───────────────────────────────────
-        _sh("🔍 Payload Preview")
+        _sh("Payload Preview")
         prev_btn_col, _ = st.columns([1, 3])
         with prev_btn_col:
-            if st.button("🔄 Generate Preview", use_container_width=True):
+            if st.button("Generate Preview", use_container_width=True):
                 st.session_state.show_payload_preview = True
 
         if st.session_state.show_payload_preview:
@@ -913,24 +934,24 @@ with tab_inject:
                 )
                 st.caption("Payload for the **first row** of the selected range:")
                 st.json(_sample_payload)
-                with st.expander("📜 URL-encoded (raw)", expanded=False):
+                with st.expander("URL-encoded (raw)", expanded=False):
                     st.code(
                         "&".join(f"{k}={v}" for k, v in _sample_payload.items()),
                         language=None,
                     )
 
         # ── Injection options ─────────────────────────────────
-        _sh("⚙️ Options")
+        _sh("Options")
         opt1, opt2 = st.columns(2)
         with opt1:
             dry_run = st.checkbox(
-                "🧪 Dry Run — build payload without sending",
+                "Dry Run — build payload without sending",
                 value=False,
                 help="Test your mapping without actually submitting data to Google Forms.",
             )
         with opt2:
             shuffle_rows = st.checkbox(
-                "🔀 Randomise row order",
+                "Randomise row order",
                 value=False,
                 help="Submit rows in a random order.",
             )
@@ -938,31 +959,31 @@ with tab_inject:
         st.write("")
 
         # ── Control buttons ───────────────────────────────────
-        _sh("🚀 Controls")
+        _sh("Controls")
         btn1, btn2, btn3 = st.columns([2, 2, 3])
         with btn1:
             start_btn = st.button(
-                "▶️ Start Injection",
+                "Start Injection",
                 disabled=st.session_state.is_running,
                 use_container_width=True,
                 type="primary",
             )
         with btn2:
             stop_btn = st.button(
-                "⏹️ Stop",
+                "Stop",
                 disabled=not st.session_state.is_running,
                 use_container_width=True,
             )
         with btn3:
             reset_btn = st.button(
-                "🔄 Reset Log & Results",
+                "Reset Log & Results",
                 use_container_width=True,
             )
 
         if stop_btn:
             st.session_state.stop_flag[0] = True
             st.warning(
-                "⏹️ Stop signal sent. The process will halt after the current row.",
+                "Stop signal sent. The process will halt after the current row.",
                 icon="⏹️",
             )
 
@@ -972,7 +993,7 @@ with tab_inject:
             st.session_state.is_running = False
             st.session_state.stop_flag = [False]
             st.session_state.show_payload_preview = False
-            st.success("✅ Log and results have been reset.", icon="✅")
+            st.success("Log and results have been reset.", icon="✅")
             st.rerun()
 
         # ── Injection runner ──────────────────────────────────
@@ -1000,7 +1021,7 @@ with tab_inject:
 
             if blocking:
                 st.error(
-                    "❌ Fix the following mapping errors before proceeding:\n\n"
+                    "Fix the following mapping errors before proceeding:\n\n"
                     + "\n".join(
                         f"- **{b['entry_id']}**: {b['issue']}" for b in blocking
                     )
@@ -1045,7 +1066,7 @@ with tab_inject:
                         text=f"Row {current}/{total} ({pct * 100:.1f}%)",
                     )
                     status_empty.markdown(
-                        f"🔄 **Running** — row **{current}** of **{total}**"
+                        f"**Running** — row **{current}** of **{total}**"
                     )
 
                 _append_log(
@@ -1061,7 +1082,7 @@ with tab_inject:
                         if st.session_state.stop_flag[0]:
                             _append_log(
                                 f"[{datetime.now().strftime('%H:%M:%S')}] "
-                                f"⏹️  Stopped at row {_idx + 1}/{total_recs}"
+                                f"Stopped at row {_idx + 1}/{total_recs}"
                             )
                             break
 
@@ -1084,7 +1105,7 @@ with tab_inject:
                         )
                         _append_log(
                             f"[{datetime.now().strftime('%H:%M:%S')}] "
-                            f"🧪 Row {_idx + 1}/{total_recs} — "
+                            f"Row {_idx + 1}/{total_recs} — "
                             f"payload built ({len(_payload)} fields)"
                         )
                         _update_progress(_idx + 1, total_recs)
@@ -1114,7 +1135,7 @@ with tab_inject:
                 _summary_wrap = summarise_results(st.session_state.results)
                 progress_bar.progress(1.0, text="Done ✅")
                 status_empty.success(
-                    f"✅ Finished — "
+                    f"Finished — "
                     f"**{_summary_wrap['success']}** succeeded / "
                     f"**{_summary_wrap['failed']}** failed / "
                     f"**{_summary_wrap['total']}** total",
@@ -1135,16 +1156,16 @@ with tab_inject:
     if st.session_state.results:
         _summary = summarise_results(st.session_state.results)
 
-        _sh("📊 Results Summary")
+        _sh("Results Summary")
         rs1, rs2, rs3, rs4 = st.columns(4)
         rs1.metric("Total Submitted", f"{_summary['total']:,}")
         rs2.metric(
-            "Succeeded ✅",
+            "Succeeded",
             f"{_summary['success']:,}",
             delta=f"{_summary['rate'] * 100:.1f}%",
         )
         rs3.metric(
-            "Failed ❌",
+            "Failed",
             f"{_summary['failed']:,}",
             delta=(
                 f"-{(1 - _summary['rate']) * 100:.1f}%"
@@ -1189,12 +1210,12 @@ with tab_inject:
         )
 
         # ── Export buttons ────────────────────────────────────
-        _sh("⬇️ Export Results")
+        _sh("Export Results")
         ex1, ex2, ex3 = st.columns(3)
 
         with ex1:
             st.download_button(
-                "⬇️ Download CSV",
+                "Download CSV",
                 data=_results_df.to_csv(index=False).encode("utf-8"),
                 file_name=f"injection_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
@@ -1211,7 +1232,7 @@ with tab_inject:
                 ensure_ascii=False,
             ).encode("utf-8")
             st.download_button(
-                "⬇️ Download JSON",
+                "Download JSON",
                 data=_json_export,
                 file_name=f"injection_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json",
@@ -1220,7 +1241,7 @@ with tab_inject:
 
         with ex3:
             st.download_button(
-                "⬇️ Download Log (.txt)",
+                "Download Log (.txt)",
                 data="\n".join(st.session_state.log_lines).encode("utf-8"),
                 file_name=f"injection_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
