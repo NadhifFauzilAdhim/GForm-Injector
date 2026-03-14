@@ -489,6 +489,23 @@ with tab_mapping:
             "fields and populate the mapping table automatically."
         )
 
+        st.info(
+            "**How to capture the payload:**\n"
+            "1. Open the Google Form in your browser.\n"
+            "2. Open **Developer Tools** (F12).\n"
+            "3. Go to the **Network** tab.\n"
+            "4. Submit the form once.\n"
+            "5. Find the **`formResponse`** request.\n"
+            "6. Copy the **Request Body** (raw text).\n"
+            "7. Paste it below.",
+            icon="ℹ️",
+        )
+
+        st.image(
+            "./img/payload.png",
+            use_container_width=True,
+        )
+
         raw_input = st.text_area(
             "Raw Payload",
             value=st.session_state.raw_payload_text,

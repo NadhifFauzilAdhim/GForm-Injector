@@ -557,7 +557,8 @@ def decode_raw_payload(raw: str) -> dict:
         ``raw_pairs`` (list[tuple])
             All key/value pairs in original order (after URL-decoding).
     """
-    from urllib.parse import parse_qsl  # stdlib – always available
+    from urllib.parse import parse_qsl, unquote
+    import json
 
     raw = raw.strip()
     if not raw:
@@ -602,6 +603,27 @@ def decode_raw_payload(raw: str) -> dict:
         # Everything else
         else:
             metadata[key] = value
+
+    partial_response_raw = google_internal.get("partialResponse")
+    if partial_response_raw:
+        try:
+            parsed_partial = json.loads(unquote(partial_response_raw))
+            if isinstance(parsed_partial, list) and len(parsed_partial) > 0:
+                inner_list = parsed_partial[0]
+                if isinstance(inner_list, list):
+                    for item in inner_list:
+                        if isinstance(item, list) and len(item) >= 3:
+                            entry_number = item[1]
+                            value_list = item[2]
+                            
+                            if entry_number and isinstance(value_list, list) and len(value_list) > 0:
+                                entry_id = f"entry.{entry_number}"
+                                val = value_list[0]
+                                
+                                if entry_id not in entry_values:
+                                    entry_values[entry_id] = str(val)
+        except Exception:
+            pass
 
     entries: list[dict] = [
         {
