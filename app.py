@@ -237,8 +237,42 @@ with st.sidebar:
 
     st.warning("**Warning:** Developer is not responsible for any misuse of this tool.")
 
-    st.divider()
-    st.markdown("### Form URL")
+    # ── Generator Reference ───────────────────────────────────
+    with st.expander("Generator Reference", expanded=False):
+        for gen_name in get_generator_names():
+            desc = get_generator_description(gen_name)
+            sample = get_generator_sample(gen_name)
+            st.markdown(
+                f"**{gen_name}**  \n"
+                f"<span style='color:#a6e3a1;font-size:0.77rem'>{desc}</span>  \n"
+                f"<span style='color:#89dceb;font-size:0.75rem'>Example: `{sample}`</span>",
+                unsafe_allow_html=True,
+            )
+            st.divider()
+
+    st.markdown(
+        "<div class='sidebar-footer'>Made with ❤️ by NDFProject</div>",
+        unsafe_allow_html=True,
+    )
+
+# ============================================================
+# Page title
+# ============================================================
+
+st.markdown("## Google Form Injector")
+st.caption("Upload a CSV · Configure field mappings · Bulk-submit to Google Forms")
+
+tab_upload, tab_mapping, tab_inject = st.tabs(
+    ["Upload & Preview", "Mapping Builder", "Injection"]
+)
+
+# ============================================================
+# TAB 1 — Upload & Preview
+# ============================================================
+
+with tab_upload:
+    _sh("Form URL")
+    
     raw_url: str = st.text_input(
         "Response URL",
         placeholder="https://docs.google.com/forms/d/e/.../formResponse",
@@ -263,90 +297,6 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Request Delay ─────────────────────────────────────────
-    st.markdown("### Request Delay")
-    d_col1, d_col2 = st.columns(2)
-    with d_col1:
-        min_delay: float = st.number_input(
-            "Min (sec)",
-            min_value=0.0,
-            max_value=60.0,
-            value=1.0,
-            step=0.5,
-            format="%.1f",
-        )
-    with d_col2:
-        max_delay: float = st.number_input(
-            "Max (sec)",
-            min_value=0.0,
-            max_value=120.0,
-            value=3.0,
-            step=0.5,
-            format="%.1f",
-        )
-    if min_delay > max_delay:
-        st.warning("⚠️ Min delay is greater than Max delay")
-
-    st.divider()
-
-    # ── Form Metadata ─────────────────────────────────────────
-    st.markdown("### Form Metadata")
-    fvv: str = st.text_input(
-        "fvv",
-        value=st.session_state.fvv_val,
-        help="Google Form version flag. Usually `1`. Auto-filled by Decode Payload.",
-    )
-    st.session_state.fvv_val = fvv
-
-    page_history: str = st.text_input(
-        "pageHistory",
-        value=st.session_state.ph_val,
-        help="Comma-separated page indices visited. Example: `0,1,2,3`. Auto-filled by Decode Payload.",
-    )
-    st.session_state.ph_val = page_history
-
-    include_sentinels: bool = st.checkbox(
-        "Include Sentinel Fields",
-        value=True,
-        help="Append `entry.XXX_sentinel = ''` for entries marked as sentinel.",
-    )
-
-    st.divider()
-
-    # ── Generator Reference ───────────────────────────────────
-    with st.expander("Generator Reference", expanded=False):
-        for gen_name in get_generator_names():
-            desc = get_generator_description(gen_name)
-            sample = get_generator_sample(gen_name)
-            st.markdown(
-                f"**{gen_name}**  \n"
-                f"<span style='color:#a6e3a1;font-size:0.77rem'>{desc}</span>  \n"
-                f"<span style='color:#89dceb;font-size:0.75rem'>Example: `{sample}`</span>",
-                unsafe_allow_html=True,
-            )
-            st.divider()
-
-    st.markdown(
-        "<div class='sidebar-footer'>Made with ❤️ using Streamlit</div>",
-        unsafe_allow_html=True,
-    )
-
-# ============================================================
-# Page title
-# ============================================================
-
-st.markdown("## Google Form Injector")
-st.caption("Upload a CSV · Configure field mappings · Bulk-submit to Google Forms")
-
-tab_upload, tab_mapping, tab_inject = st.tabs(
-    ["Upload & Preview", "Mapping Builder", "Injection"]
-)
-
-# ============================================================
-# TAB 1 — Upload & Preview
-# ============================================================
-
-with tab_upload:
     _sh("⬆️ Upload CSV File")
 
     uploaded_file = st.file_uploader(
@@ -942,7 +892,51 @@ with tab_inject:
 
         # ── Injection options ─────────────────────────────────
         _sh("Options")
-        opt1, opt2 = st.columns(2)
+        
+        # ── Form Metadata ─────────────────────────────────────────
+        with st.expander("Form Metadata", expanded=False):
+            st.info("Only change this if you know what you are doing. Values are auto-filled by Decode Payload.")
+            fm_c1, fm_c2 = st.columns(2)
+            with fm_c1:
+                fvv: str = st.text_input(
+                    "fvv",
+                    value=st.session_state.fvv_val,
+                    help="Google Form version flag. Usually `1`.",
+                )
+                st.session_state.fvv_val = fvv
+            with fm_c2:
+                page_history: str = st.text_input(
+                    "pageHistory",
+                    value=st.session_state.ph_val,
+                    help="Comma-separated page indices visited. Example: `0,1,2,3`.",
+                )
+                st.session_state.ph_val = page_history
+
+        # ── Request Delay ─────────────────────────────────────────
+        with st.expander("Request Delay", expanded=False):
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                min_delay: float = st.number_input(
+                    "Min (sec)",
+                    min_value=0.0,
+                    max_value=60.0,
+                    value=1.0,
+                    step=0.5,
+                    format="%.1f",
+                )
+            with d_col2:
+                max_delay: float = st.number_input(
+                    "Max (sec)",
+                    min_value=0.0,
+                    max_value=120.0,
+                    value=3.0,
+                    step=0.5,
+                    format="%.1f",
+                )
+            if min_delay > max_delay:
+                st.warning("⚠️ Min delay is greater than Max delay")
+
+        opt1, opt2, opt3 = st.columns(3)
         with opt1:
             dry_run = st.checkbox(
                 "Dry Run — build payload without sending",
@@ -954,6 +948,12 @@ with tab_inject:
                 "Randomise row order",
                 value=False,
                 help="Submit rows in a random order.",
+            )
+        with opt3:
+            include_sentinels: bool = st.checkbox(
+                "Include Sentinel Fields",
+                value=True,
+                help="Append `entry.XXX_sentinel = ''` for entries marked as sentinel.",
             )
 
         st.write("")
