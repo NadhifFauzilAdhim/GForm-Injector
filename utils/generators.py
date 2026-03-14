@@ -199,6 +199,21 @@ def get_random_satisfaction() -> str:
     return random.choice(options)
 
 
+def get_random_choice(options: list[str]) -> str:
+    """
+    Return a random choice from a provided list of options.
+
+    Args:
+        options: List of strings to choose from.
+
+    Returns:
+        A randomly selected string from the list.
+    """
+    if not options:
+        return ""
+    return random.choice(options)
+
+
 def get_random_integer(min_val: int = 1, max_val: int = 100) -> str:
     """
     Return a random integer string within the given range.
@@ -395,3 +410,21 @@ def get_generator_sample(generator_name: str) -> str:
     if callable(sample_fn):
         return str(sample_fn())
     return ""
+
+
+def register_generator(
+    name: str, func: callable, kwargs: dict, description: str, sample: callable
+) -> None:
+    """Register a new or custom generator."""
+    GENERATOR_REGISTRY[name] = {
+        "func": func,
+        "kwargs": kwargs,
+        "description": description,
+        "sample": sample,
+    }
+
+
+def unregister_generator(name: str) -> None:
+    """Remove a generator from the registry."""
+    if name in GENERATOR_REGISTRY:
+        del GENERATOR_REGISTRY[name]

@@ -41,6 +41,11 @@ from utils.generators import (
     get_generator_description,
     get_generator_names,
     get_generator_sample,
+    get_random_choice,
+    get_random_float,
+    get_random_integer,
+    register_generator,
+    unregister_generator,
 )
 
 st.set_page_config(
@@ -122,6 +127,7 @@ def _init_state() -> None:
         "ph_val": "0",
         "decoded_result": None,
         "raw_payload_text": "",
+        "custom_generators": {},
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -129,6 +135,33 @@ def _init_state() -> None:
 
 
 _init_state()
+
+# Register custom generators on every rerun
+for gen_name, gen_data in st.session_state.custom_generators.items():
+    if gen_data["type"] == "Options List":
+        register_generator(
+            gen_name,
+            func=get_random_choice,
+            kwargs={"options": gen_data["options"]},
+            description=f"Custom list ({len(gen_data['options'])} items)",
+            sample=lambda opts=gen_data["options"]: get_random_choice(opts),
+        )
+    elif gen_data["type"] == "Integer Range":
+        register_generator(
+            gen_name,
+            func=get_random_integer,
+            kwargs={"min_val": gen_data["min"], "max_val": gen_data["max"]},
+            description=f"Integer between {gen_data['min']} and {gen_data['max']}",
+            sample=lambda m1=gen_data["min"], m2=gen_data["max"]: get_random_integer(m1, m2),
+        )
+    elif gen_data["type"] == "Float Range":
+        register_generator(
+            gen_name,
+            func=get_random_float,
+            kwargs={"min_val": gen_data["min"], "max_val": gen_data["max"], "decimals": 2},
+            description=f"Float between {gen_data['min']} and {gen_data['max']}",
+            sample=lambda m1=gen_data["min"], m2=gen_data["max"]: get_random_float(m1, m2, 2),
+        )
 
 if not st.session_state.agreed:
     
@@ -314,7 +347,7 @@ with tab_upload:
                     st.session_state.df = df_loaded
                     st.session_state.csv_columns = get_column_names(df_loaded)
                     st.success(
-                        f"✅ File loaded — "
+                        f"File loaded — "
                         f"**{get_row_count(df_loaded):,} rows** × "
                         f"**{len(st.session_state.csv_columns)} columns**"
                     )
@@ -391,6 +424,62 @@ with tab_upload:
 
 with tab_mapping:
     _sh("🗺️ Entry Mapping Configuration")
+
+    # ── Custom Generators ─────────────────────────────────────
+    with st.expander("⚙️ Custom Generators", expanded=False):
+        cg_action = st.radio("Action", ["Add New", "Manage Existing"], horizontal=True, label_visibility="collapsed")
+        
+        if cg_action == "Add New":
+            cg_name = st.text_input("Generator Name", placeholder="e.g. My Custom Range")
+            cg_type = st.selectbox("Generator Type", ["Options List", "Integer Range", "Float Range"])
+            
+            cg_opts = []
+            cg_min = 0
+            cg_max = 100
+            
+            if cg_type == "Options List":
+                cg_opts_raw = st.text_area("Options (comma-separated)", placeholder="Apple, Banana, Cherry")
+                cg_opts = [x.strip() for x in cg_opts_raw.split(",") if x.strip()]
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    cg_min = st.number_input("Min", value=0)
+                with col2:
+                    cg_max = st.number_input("Max", value=100)
+                    
+            if st.button("Save Generator", use_container_width=True, type="primary"):
+                if not cg_name.strip():
+                    st.error("Name cannot be empty.")
+                elif cg_name.strip() in get_generator_names() and cg_name.strip() not in st.session_state.custom_generators:
+                    st.error("Name conflicts with a built-in generator.")
+                elif cg_type == "Options List" and not cg_opts:
+                    st.error("Please provide at least one option.")
+                elif cg_type in ["Integer Range", "Float Range"] and cg_min > cg_max:
+                    st.error("Min cannot be greater than Max.")
+                else:
+                    st.session_state.custom_generators[cg_name.strip()] = {
+                        "type": cg_type,
+                        "options": cg_opts,
+                        "min": cg_min,
+                        "max": cg_max
+                    }
+                    st.success(f"Saved '{cg_name.strip()}'!")
+                    time.sleep(1)
+                    st.rerun()
+
+        else:
+            if not st.session_state.custom_generators:
+                st.info("No custom generators added yet.")
+            else:
+                for cname in list(st.session_state.custom_generators.keys()):
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        st.write(f"**{cname}**")
+                    with c2:
+                        if st.button("🗑️", key=f"del_cg_{cname}", help="Delete"):
+                            del st.session_state.custom_generators[cname]
+                            unregister_generator(cname)
+                            st.rerun()
 
     # ── DECODE RAW PAYLOAD ────────────────────────────────────
     with st.expander("🔓 Decode Raw Payload → Auto-fill Mapping", expanded=False):
@@ -864,6 +953,15 @@ with tab_inject:
             selected_count = max(0, int(end_row) - int(start_row))
             st.metric("Rows to submit", f"{selected_count:,}")
 
+        # Fetch settings for preview/injection. If not in UI anymore, use session state defaults
+        current_fvv = st.session_state.get("fvv_val", "1")
+        current_ph = st.session_state.get("ph_val", "0")
+        
+        # We need `include_sentinels` before it is defined in the UI
+        # Check session state or set a reasonable default.
+        if "include_sentinels_val" not in st.session_state:
+            st.session_state.include_sentinels_val = True
+
         _sh("Payload Preview")
         prev_btn_col, _ = st.columns([1, 3])
         with prev_btn_col:
@@ -878,9 +976,9 @@ with tab_inject:
                 _sample_payload = build_payload(
                     row=_records_prev[0],
                     mappings=st.session_state.mappings,
-                    fvv=fvv,
-                    page_history=page_history,
-                    include_sentinels=include_sentinels,
+                    fvv=current_fvv,
+                    page_history=current_ph,
+                    include_sentinels=st.session_state.include_sentinels_val,
                 )
                 st.caption("Payload for the **first row** of the selected range:")
                 st.json(_sample_payload)
@@ -904,6 +1002,7 @@ with tab_inject:
                     help="Google Form version flag. Usually `1`.",
                 )
                 st.session_state.fvv_val = fvv
+                current_fvv = fvv
             with fm_c2:
                 page_history: str = st.text_input(
                     "pageHistory",
@@ -911,6 +1010,7 @@ with tab_inject:
                     help="Comma-separated page indices visited. Example: `0,1,2,3`.",
                 )
                 st.session_state.ph_val = page_history
+                current_ph = page_history
 
         # ── Request Delay ─────────────────────────────────────────
         with st.expander("Request Delay", expanded=False):
@@ -952,9 +1052,10 @@ with tab_inject:
         with opt3:
             include_sentinels: bool = st.checkbox(
                 "Include Sentinel Fields",
-                value=True,
+                value=st.session_state.include_sentinels_val,
                 help="Append `entry.XXX_sentinel = ''` for entries marked as sentinel.",
             )
+            st.session_state.include_sentinels_val = include_sentinels
 
         st.write("")
 
